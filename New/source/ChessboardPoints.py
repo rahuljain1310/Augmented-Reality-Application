@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import glob
+import os
 
 def getGrayImage(fname,shape):
 	img = cv2.imread(fname)
@@ -19,7 +20,7 @@ def getK():
 	objpoints = [] # 3d point in real world space
 	imgpoints = [] # 2d points in image plane.
 
-	images = glob.glob('CalibrationImages/*.jpg')
+	images = glob.glob('CalibrationImages/*.png')
 	Shape = None
 
 	for fname in images:
@@ -39,8 +40,10 @@ def getK():
 	ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, Shape, None,None)
 	if ret:
 		print("Camera Matrix")
-		print(mtx)
+		# print(mtx)
+		return mtx
 	else:
 		print("No Solution Found")
 
 	cv2.destroyAllWindows()
+
