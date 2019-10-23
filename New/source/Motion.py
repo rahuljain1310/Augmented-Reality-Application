@@ -38,10 +38,10 @@ def getReflectionFromPlane(plane,incident):
   n = plane[0:3]
   return incident-2*n.dot(incident)*n
 
-ls = np.array([[-1,2,1], [0,-3,2], [1,1,-4]])
-plane = getPlane(ls)
-incident = np.array([1,0,0])
-print(getReflectionFromPlane(plane,incident))
+# ls = np.array([[-1,2,1], [0,-3,2], [1,1,-4]])
+# plane = getPlane(ls)
+# incident = np.array([1,0,0])
+# print(getReflectionFromPlane(plane,incident))
 
   
 

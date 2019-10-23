@@ -158,7 +158,6 @@ def getProjectionAndRender(frame, model,matches,kp_model, kp_frame, projection, 
 	# 	frame = render(frame, obj, projection, model, False)
 		return projection,frame
 
-alpha = 0.25
 def get_smoothened_homo(H_old,H_new, alpha):
 	return H_old*(1-alpha) + H_new*(alpha)
 
@@ -258,30 +257,43 @@ while True:
 
 	## == Update Position == ##
 	position = np.matmul(position,step)
-	
-	alpha = 0.25
+
+	alpha = 0.01
 	count_1=0
+	count_2=0
+
 	if len(matches2)>MIN_MATCHES:
-		homo2_t = getHomographyFromMatched(matches,kp_model,kp_frame)
-		if homo2 is not None:
-			homo2 = get_smoothened_homo(homo2,homo2_t,alpha)
+		homography,_ = getHomographyFromMatched(matches2,kp_model2,kp_frame)
+		if homography is not None:
+			if homography2 is not None:
+				homography2 = get_smoothened_homo(homography,homography2,alpha)
+			else:
+				homography2 = homography
 			count_1 = 0
 	else:
 		count_1 += 1
 		if (count_1==25):
 			count_1 = 0
-			homo2 = None
-	if homo2 is not None:
-		getProjectionAndRender(frame,model1,matches1, kp_model1, kp_frame, projection1, homography1)
-	# homo2_t,projection2_t,frame = getProjectionAndRender(frame, model2, matches2, kp_model2, kp_frame, projection2, homography2)
+			homography2 = None
+	if homography2 is not None:
+		projection2,frame = getProjectionAndRender(frame, model2, matches2, kp_model2, kp_frame, projection2, homography2)
 
-	# if homo1 is None:
-	# 	homo1,projection1,frame = getProjectionAndRender(frame, model1, matches1, kp_model1, kp_frame, projection1, homography1)
-	# else:
-	# 	homo2 =
-	
+	if len(matches1)>MIN_MATCHES:
+		homography,_ = getHomographyFromMatched(matches1,kp_model1,kp_frame)
+		if homography is not None:
+			if homography1 is not None:
+				homography1 = get_smoothened_homo(homography,homography1,alpha)
+			else:
+				homography1 = homography
+			count_2 = 0
+	else:
+		count_1 += 1
+		if (count_1==25):
+			count_1 = 0
+			homography1 = None
+	if homography1 is not None:
+		projection1,frame = getProjectionAndRender(frame, model1, matches1, kp_model1, kp_frame, projection1, homography1)
 
-	
 	## == Show Frame == ##
 	cv2.imshow('frame', frame)
 	if cv2.waitKey(10) & 0xFF == ord('q'):
