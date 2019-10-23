@@ -19,13 +19,17 @@ bf = cv2.BFMatcher()
 obj1 = OBJ('../models/fox.obj', swapyz=True)  
 
 def init_():
-		model2 = cv2.imread('marker_archieved/marker7_2.png',0)
-		model1 = cv2.imread('marker_archieved/marker6_1.png',0)
+		model2 = cv2.imread('../markers/marker1/VisualMarker1.png',0)
+		model1 = cv2.imread('../markers/marker1/VisualMarker.png',0)
+		# model1.reshape(400,500)
+		# model2.reshape(400,500)
+		# print(model1.shape)
+		# print(model2.shape)
 		sift = cv2.xfeatures2d.SIFT_create()
 		bf = cv2.BFMatcher()
 		kp_model1, des_model1 = sift.detectAndCompute(model1,None)
 		kp_model2, des_model2 = sift.detectAndCompute(model2,None)
-		return kp_model1, kp_model2, des_model1, des_model2
+		return kp_model1, kp_model2, des_model1, des_model2, model1.shape, model2.shape
 		# Load 3D model from OBJ file
 
 		## ======================== ORB ========================== ##
@@ -224,8 +228,8 @@ def detect_markers(md1, md2, vd):
 						# print(corners,ids)
 						cv2.waitKey(1000//30)
 
-def get_camera_pose(K,  corner):
-		h,w = 200,200 #centi meter
+def get_camera_pose(K,  corner, model_shape):
+		h,w = model_shape #centi meter
 		world_corner = np.float32([[0, 0], [w-1, 0], [w - 1, h - 1], [0, h-1]]).reshape(-1, 1, 2)
 		# print(world_corner)
 		homography,mask = cv2.findHomography(world_corner,corner)
@@ -288,14 +292,36 @@ def render(img, obj, projection, model, color=False):
 						cv2.fillConvexPoly(img, imgpts, color)
 
 		return img
-def play_using_sift(kpm1,kpm2,des1,des2,vd):
+def get_t_homo(h1):
+	x1,x2,x3 = h1
+	return np.array([x1[2],x2[2],x3[2]])
+
+def get_dist(t1,t2):
+	t = t1-t2
+	return math.sqrt(t[0]*t[0] + t[1]*t[1] + t[2]*t[2])
+
+def get_mid_homo(h1,h2, velocity = 0.05,timespan = 1000//30):
+	total_dist = get_dist(get_t_homo(h1),get_t_homo(h2))
+	tt = total_dist/velocity
+	if (tt<=timespan):
+		return h2
+	return (h1*(tt-timespan) + h2*(timespan))/tt
+
+def play_using_sift(kpm1,kpm2,des1,des2,vd,model_shape):
+		# fourcc = cv2.VideoWriter_fourcc(*'XVID')
+		fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v') 	
+		vd_write = cv2.VideoWriter('video_out_test4_3.mp4',fourcc,15,(640,352))
 		homo1 = None
 		homo2 = None
 		MIN_MATCHES = 8
-		alpha_h= 0.01
-		h,w=model_shape = (200,200)
+		alpha_h= 0.05
+		h,w= model_shape[0]
+		# print(h,w)
+		h2,w2 = model_shape[1]
+		homo_cur = None
 		
-		pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+		pts1 = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+		pts2 = np.float32([[0, 0], [0, h2 - 1], [w2 - 1, h2 - 1], [w2 - 1, 0]]).reshape(-1, 1, 2)
 
 		while(True):
 				X = get_keypoints(vd,des1,des2)
@@ -305,20 +331,21 @@ def play_using_sift(kpm1,kpm2,des1,des2,vd):
 				else:
 						matches1,matches2, kp_frame, des_frame,frame = X
 				if (len(matches1)>MIN_MATCHES):
-						homo1_t,marked = getHomographyFromMatched(matches1, kpm2,kp_frame)
+						homo1_t,marked = getHomographyFromMatched(matches1, kpm1,kp_frame)
 						if homo1 is None:
 								homo1 = homo1_t
+								homo_cur = homo1
 								homo_1 = homo1
 						else:
 								homo1 = np.array((1-alpha_h)*homo1 + (alpha_h)*homo1_t)
 								# 
-								dst = cv2.perspectiveTransform(pts, homo1)
+								dst = cv2.perspectiveTransform(pts1, homo1)
 								frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)  
 								# 
 								# print(homo2)
-								pm1 = projection_matrix(K, homo1)  
+								# pm1 = projection_matrix(K, homo1)  
 								# print(pm2)
-								frame = render(frame,obj1,pm1,model_shape)
+								# frame = render(frame,obj1,pm1,model_shape)
 
 				# print(len(matches2))
 				if (len(matches2) > MIN_MATCHES):
@@ -329,27 +356,44 @@ def play_using_sift(kpm1,kpm2,des1,des2,vd):
 						else:
 								homo2 = np.array((1-alpha_h)*homo2 + (alpha_h)*homo2_t)
 								# 
-								dst = cv2.perspectiveTransform(pts, homo2)
+								dst = cv2.perspectiveTransform(pts2, homo2)
 								frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)  
 								# 
 								# print(homo2)
-								pm2 = projection_matrix(K, homo2)  
+								# pm2 = projection_matrix(K, homo2)  
 								# print(pm2)
-								frame = render(frame,obj1,pm2,model_shape)
+								# frame = render(frame,obj1,pm2,model_shape)
+				if homo_cur is not None:
+						if homo2 is not None:
+							homo_cur = get_mid_homo(homo_cur,homo2)
+						pm = projection_matrix(K,homo_cur)
+						
+						frame = render(frame,obj1,pm,model_shape[0])
+						
 
+			
 				
 				cv2.imshow('frame',frame)
+				frame = np.asarray(frame,dtype=np.uint8)
+				vd_write.write(frame)
 				cv2.waitKey(1000//30)
 
 
 if __name__=='__main__':
 		md1, md2 = create_markers()
-		kpm1, kpm2, des1, des2 = init_()
+		kpm1, kpm2, des1, des2,m1s,m2s = init_()
 		
 		# vd = cv2.VideoCapture('videos/video_1.mp4')
 		# vd = cv2.VideoCapture(0)
-		vd = cv2.VideoCapture('../TestVideo.mp4')
-		play_using_sift(kpm1,kpm2,des1,des2,vd)
+		vd = cv2.VideoCapture('../Test4_3.mp4')
+		# fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v') #
+
+		# vd_write = cv2.VideoWriter('video_out_test4_3.mp4',fourcc,30,(640,352))
+		# while(True):
+		# 	ret,frame = vd.read()
+		# 	if ret:
+		# 		vd_write.write(frame)
+		play_using_sift(kpm1,kpm2,des1,des2,vd,(m1s,m2s))
 		# base_img = cv2.imread('markers/marker6_1.png')
 		obj1 = OBJ('../models/fox.obj', swapyz=True)  
 		obj2 = OBJ('../models/rat.obj', swapyz=True)
