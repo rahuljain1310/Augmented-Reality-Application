@@ -58,56 +58,56 @@ def getK():
 ### ======================================================================================================
 
 def getHomographyFromMatched(matches,kp1,kp2):
-  if len(matches[:,0]) >= 4:
-    src = np.float32([ kp1[m.queryIdx].pt for m in matches[:,0] ]).reshape(-1,1,2)
-    dst = np.float32([ kp2[m.trainIdx].pt for m in matches[:,0] ]).reshape(-1,1,2)
-    H, masked = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
-  return H,masked
+	if len(matches[:,0]) >= 4:
+		src = np.float32([ kp1[m.queryIdx].pt for m in matches[:,0] ]).reshape(-1,1,2)
+		dst = np.float32([ kp2[m.trainIdx].pt for m in matches[:,0] ]).reshape(-1,1,2)
+		H, masked = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
+	return H,masked
 
 def projection_matrix(camera_parameters, homography):
-    """
-    From the camera calibration matrix and the estimated homography compute the 3D projection matrix
-    """
-    # Compute rotation along the x and y axis as well as the translation
-    homography = homography * (-1)
-    rot_and_transl = np.dot(np.linalg.inv(camera_parameters), homography)
-    col_1 = rot_and_transl[:, 0]
-    col_2 = rot_and_transl[:, 1]
-    col_3 = rot_and_transl[:, 2]
-    # normalise vectors
-    l = math.sqrt(np.linalg.norm(col_1, 2) * np.linalg.norm(col_2, 2))
-    rot_1 = col_1 / l
-    rot_2 = col_2 / l
-    translation = col_3 / l
-    # compute the orthonormal basis
-    c = rot_1 + rot_2
-    p = np.cross(rot_1, rot_2)
-    d = np.cross(c, p)
-    rot_1 = np.dot(c / np.linalg.norm(c, 2) + d / np.linalg.norm(d, 2), 1 / math.sqrt(2))
-    rot_2 = np.dot(c / np.linalg.norm(c, 2) - d / np.linalg.norm(d, 2), 1 / math.sqrt(2))
-    rot_3 = np.cross(rot_1, rot_2)
-    # finally, compute the 3D projection matrix from the model to the current frame
-    projection = np.stack((rot_1, rot_2, rot_3, translation)).T
-    # print(projection)
-    return np.dot(camera_parameters, projection)
+		"""
+		From the camera calibration matrix and the estimated homography compute the 3D projection matrix
+		"""
+		# Compute rotation along the x and y axis as well as the translation
+		homography = homography * (-1)
+		rot_and_transl = np.dot(np.linalg.inv(camera_parameters), homography)
+		col_1 = rot_and_transl[:, 0]
+		col_2 = rot_and_transl[:, 1]
+		col_3 = rot_and_transl[:, 2]
+		# normalise vectors
+		l = math.sqrt(np.linalg.norm(col_1, 2) * np.linalg.norm(col_2, 2))
+		rot_1 = col_1 / l
+		rot_2 = col_2 / l
+		translation = col_3 / l
+		# compute the orthonormal basis
+		c = rot_1 + rot_2
+		p = np.cross(rot_1, rot_2)
+		d = np.cross(c, p)
+		rot_1 = np.dot(c / np.linalg.norm(c, 2) + d / np.linalg.norm(d, 2), 1 / math.sqrt(2))
+		rot_2 = np.dot(c / np.linalg.norm(c, 2) - d / np.linalg.norm(d, 2), 1 / math.sqrt(2))
+		rot_3 = np.cross(rot_1, rot_2)
+		# finally, compute the 3D projection matrix from the model to the current frame
+		projection = np.stack((rot_1, rot_2, rot_3, translation)).T
+		# print(projection)
+		return np.dot(camera_parameters, projection)
 
 def getMatches(desListi, desListj):
-  matches = bf.knnMatch(desListi, desListj, k=2)
-  good = []
-  for m in matches:
-    if m[0].distance < 0.5*m[1].distance:
-      good.append(m)
-    matches = np.asarray(good)
-  return len(matches), matches
+	matches = bf.knnMatch(desListi, desListj, k=2)
+	good = []
+	for m in matches:
+		if m[0].distance < 0.5*m[1].distance:
+			good.append(m)
+	matches = np.asarray(good)
+	return len(matches), matches
 
 ### ======================================================================================================
 ### Rendering the Object Functions
 ### ======================================================================================================
 
 def hex_to_rgb(hex_color):
-    hex_color = hex_color.lstrip('#')
-    h_len = len(hex_color)
-    return tuple(int(hex_color[i:i + h_len // 3], 16) for i in range(0, h_len, h_len // 3))
+		hex_color = hex_color.lstrip('#')
+		h_len = len(hex_color)
+		return tuple(int(hex_color[i:i + h_len // 3], 16) for i in range(0, h_len, h_len // 3))
 
 def render(img, obj, projection, model, color=False):
 	""" Render a loaded obj model into the current video frame """
@@ -135,6 +135,33 @@ def render(img, obj, projection, model, color=False):
 	finally:
 		return img
 	
+# def get_homography(frame, model, matches, kp_model, kp)	
+def getProjectionAndRender(frame, model,matches,kp_model, kp_frame, projection, homography):
+	# if len(matches) > MIN_MATCHES:
+	# 	homography,_ = getHomographyFromMatched(matches,kp_model,kp_frame)
+		## IF RECTANGLE
+		# if args.rectangle: 
+		h, w = model.shape
+		pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+		dst = cv2.perspectiveTransform(pts, homography)
+		frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)  
+		## IF HOMOGRAPHY EXISTS
+		if homography is not None: 
+			try:
+					projection = projection_matrix(camera_parameters, homography)  
+					projection = np.matmul(projection,position)
+					frame = render(frame, obj, projection, model, False)
+			except:
+					print('cannot render object')
+	# else:
+	# 	print("Not enough matches found - %d/%d" % (len(matches), MIN_MATCHES))
+	# 	frame = render(frame, obj, projection, model, False)
+		return projection,frame
+
+alpha = 0.25
+def get_smoothened_homo(H_old,H_new, alpha):
+	return H_old*(1-alpha) + H_new*(alpha)
+
 ### ======================================================================================================
 ### Intilizae Model, Marker and Descriptors
 ### ======================================================================================================
@@ -150,18 +177,23 @@ args = parser.parse_args()
 
 ## ======================== Camera Properties ========================== ##
 
-homography = None 
-projection = None
+homography1 = None 
+projection1 = None
+
+homography2 = None
+projection2 = None
+
 # camera_parameters = getK()
 camera_parameters = np.array([[517.23, 0, 309.16], [0, 379.5, 177.93], [0, 0, 1]],dtype=np.float32)
 
-MIN_MATCHES = 10
+MIN_MATCHES = 8
 
 ## ==================== Marker and Model Load ======================== ##
 
 ## Load Marker
-model1 = cv2.imread('../marker_archieved/marker7_2',0)
-model2 = cv2.imread('../marker_archieved/marker6_1',0)
+model1 = cv2.imread('marker_archieved/marker7_2.png',0)
+model2 = cv2.imread('marker_archieved/marker6_1.png',0)
+
 # Load 3D model from OBJ file
 obj = OBJ('../models/fox.obj', swapyz=True)  
 
@@ -197,6 +229,8 @@ initialPoint = np.array([0,0,0])
 finalPoint = np.array([0,500,0])
 step = Motion.getMotionStep(initialPoint,finalPoint,5)
 
+homo1 = None
+homo2 = None
 while True:
 	ret, frame = cap.read()
 	if not ret:
@@ -215,7 +249,7 @@ while True:
 	# match frame descriptors with model descriptors
 	# matches = bf.match(des_model, des_frame)           ## ORB
 	_, matches1 = getMatches(des_model1, des_frame)    ## SIFT
-	_, matches1 = getMatches(des_model2, des_frame)    ## SIFT
+	_, matches2 = getMatches(des_model2, des_frame)    ## SIFT
 
 	# sort them in the order of their distance
 	# the lower the distance, the better the match
@@ -224,30 +258,29 @@ while True:
 
 	## == Update Position == ##
 	position = np.matmul(position,step)
-
-	# === Compute Homography if enough matches are found === #
-	if len(matches) > MIN_MATCHES:
-		homography,mask = getHomographyFromMatched(matches,kp_model,kp_frame)
-		## IF RECTANGLE
-		if args.rectangle: 
-				h, w = model.shape
-				pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
-				dst = cv2.perspectiveTransform(pts, homography)
-				frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)  
-		## IF HOMOGRAPHY EXISTS
-		if homography is not None: 
-				try:
-						projection = projection_matrix(camera_parameters, homography)  
-						projection = np.matmul(projection,position)
-						frame = render(frame, obj, projection, model, False)
-				except:
-						print('cannot render object')
-		## Draw First 10 Matches
-		# if args.matches:
-				# frame = cv2.drawMatches(model, kp_model, frame, kp_frame, matches[:10], 0, flags=2)
+	
+	alpha = 0.25
+	count_1=0
+	if len(matches2)>MIN_MATCHES:
+		homo2_t = getHomographyFromMatched(matches,kp_model,kp_frame)
+		if homo2 is not None:
+			homo2 = get_smoothened_homo(homo2,homo2_t,alpha)
+			count_1 = 0
 	else:
-		print("Not enough matches found - %d/%d" % (len(matches), MIN_MATCHES))
-		frame = render(frame, obj, projection, model, False)
+		count_1 += 1
+		if (count_1==25):
+			count_1 = 0
+			homo2 = None
+	if homo2 is not None:
+		getProjectionAndRender(frame,model1,matches1, kp_model1, kp_frame, projection1, homography1)
+	# homo2_t,projection2_t,frame = getProjectionAndRender(frame, model2, matches2, kp_model2, kp_frame, projection2, homography2)
+
+	# if homo1 is None:
+	# 	homo1,projection1,frame = getProjectionAndRender(frame, model1, matches1, kp_model1, kp_frame, projection1, homography1)
+	# else:
+	# 	homo2 =
+	
+
 	
 	## == Show Frame == ##
 	cv2.imshow('frame', frame)
