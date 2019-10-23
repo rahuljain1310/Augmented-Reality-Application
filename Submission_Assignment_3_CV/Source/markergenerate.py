@@ -12,8 +12,10 @@ from shapely.geometry import Polygon,LineString,Point
 
 # from Assignment4 import * 
 import argparse
-K = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
-# K = getK()
+# K = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
+K = getK()
+print("Intrinsic Matrix K is:")
+print(K)
 # K = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]])
 
 distCoeffs = (0,0,0,0)

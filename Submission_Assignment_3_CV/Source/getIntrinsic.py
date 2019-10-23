@@ -31,8 +31,8 @@ def getK():
 			imgpoints.append(corners2)
 			# Draw and display the corners
 			img = cv2.drawChessboardCorners(gray, (7,7), corners2, ret )
-			cv2.imshow('img',gray)
-			cv2.waitKey(2000)
+			# cv2.imshow('img',gray)
+			# cv2.waitKey(1000)
 
 	ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, Shape, None,None)
 	if ret:
