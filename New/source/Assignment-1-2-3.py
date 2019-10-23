@@ -24,7 +24,7 @@ def getK():
 	objpoints = [] # 3d point in real world space
 	imgpoints = [] # 2d points in image plane.
 
-	images = glob.glob('CalibrationImages/Set{0}/*.jpg'.format(setDirec))
+	images = glob.glob('CalibrationImages/Set{0}/*.jpeg'.format(setDirec))
 	Shape = None
 
 	for fname in images:
@@ -153,8 +153,8 @@ args = parser.parse_args()
 
 homography = None 
 projection = None
-# camera_parameters = getK()
-camera_parameters = np.array([[517.23, 0, 309.16], [0, 379.5, 177.93], [0, 0, 1]],dtype=np.float32)
+camera_parameters = getK()
+# camera_parameters = np.array([[517.23, 0, 309.16], [0, 379.5, 177.93], [0, 0, 1]],dtype=np.float32)
 
 MIN_MATCHES = 10
 
