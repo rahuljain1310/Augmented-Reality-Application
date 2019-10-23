@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 import glob
-# from objloader import *
+from objloader import *
 import os
 
 dir_name = os.getcwd()
@@ -14,7 +14,7 @@ print(objp)
 objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d points in image plane.
 
-images = glob.glob('*.jpg') 
+images = glob.glob('*.jpg')
 
 for fname in images:
     img = cv2.imread(fname)
@@ -59,5 +59,5 @@ def render(img, obj, projection, model, color=False):
 
     return img
 
-# def main():
-#     model_h = 
+def main():
+    model_h = 
