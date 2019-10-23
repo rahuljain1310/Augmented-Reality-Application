@@ -13,6 +13,8 @@ K = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]])
 distCoeffs = (0,0,0,0)
 markerSize = 7.9  # centimeters
 
+pixelCmRatio = 9.5/(500-16)
+
 def extract_RT(RT):
     x1,x2,x3,x4 = RT
     R = np.array([x1[:2],x2[:2],x3[:2]])
@@ -126,7 +128,7 @@ def get_camera_pose(K,  corner):
     h,w = 200,200 #centi meter
     world_corner = np.float32([[0, 0], [w-1, 0], [w - 1, h - 1], [0, h-1]]).reshape(-1, 1, 2)
     # print(world_corner)
-    homography,mask = cv2.findHomography(world_corner,corner)
+    homography,mask = cv2.findHomography(world_corner*pixelCmRatio,corner)
     projection = projection_matrix(K, homography)  
     return projection
 
