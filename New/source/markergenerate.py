@@ -14,13 +14,14 @@ distCoeffs = (0,0,0,0)
 markerSize = 7.9  # centimeters
 
 def extract_RT(RT):
-    x1,x2,x3,x4 = RT
+    x1,x2,x3 = RT
     R = np.array([x1[:2],x2[:2],x3[:2]])
-    T = np.array([x1[2],x2[2].x3[2]])
-    # return np.concatenate(R,T)
+    T = np.array([x1[2],x2[2],x3[2]])
+    return R,T
 
 def get_relative_rt(H1, H2):
     H1_t = np.transpose(H1)
+    print(H1_t)
     RT = np.matmul(np.matmul(np.linalg.inv(np.matmul(H1_t, H1)),H1_t),H2)
     return RT
 
@@ -43,11 +44,17 @@ def create_markers():
         cv2.imwrite(os.path.join('markers','marker7_')+str(i+1)+'.png', markers2[i])
     return markers_dict1, markers_dict2
     # return markers
+# def play_using_aruco(md1,md2,vd):
 
-def detect_2_markers(md1,md2,vd):
+def play_using_aruco(md1,md2,vd):
     model_shape = (20,20)
     c1 = None
     c2 = None
+    nfc1 = 0
+    nfc2 = 0
+    nfc_limit = 20
+    pm1 = None
+    pm2 = None
     while(True):
         ret, frame = vd.read()
         # print(frame.shape)
@@ -56,24 +63,55 @@ def detect_2_markers(md1,md2,vd):
             corners1, ids, rejectedpts = detectMarkers(frame,md1)
             if (len(corners1)>=1):
                 c1 = corners1[0]
+                nfc1 = 0
+            else:
+                nfc1 +=1
+                if (nfc1==nfc_limit):
+                    c1=None
+                    pm1 = None
+                    nfc1 = 0
+
             # corners2,_,_ = detectMarkers(frame,md2)
             corners2, ids2,rp2 = detectMarkers(frame,md2)
             if (len(corners2)>=1):
                 c2 = corners2[0]
+                nfc2=0
+            else:
+                nfc2 +=1
+                if (nfc2==nfc_limit):
+                    c2=None
+                    nfc2 = 0
 
             if (c1 is not None and c2 is not None):
-                print(5)
-                pm1 = get_camera_pose(K,c1)
+                # print(5)
                 pm2 = get_camera_pose(K,c2)
-                RT_rel = get_relative_rt(pm1,pm2)
+                if pm1 is None:
+                    pm1 = get_camera_pose(K,c1)
+                else:
+                    pm1 = get_pm(pm1,pm2)
+                
+                
+                # RT_rel = get_relative_rt(pm1,pm2)
                 frame = drawDetectedMarkers(frame,[c1,c2])
                 # frame = drawDetectedMarkers(frame,c2)
                 frame = render(frame,obj1,pm1,model_shape)
-                frame = render(frame, obj2,pm2,model_shape)
+                # frame = render(frame, obj2,pm2,model_shape)
             
             cv2.imshow('corner',frame)
             # print(corners,ids)
             cv2.waitKey(1000//30)
+def get_dist(a):
+    return math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2])
+def get_pm(pm, pm2,timestep=1000/30, velocity = 0.1):
+    R1,T1 = extract_RT(pm)
+    R2,T2 = extract_RT(pm2)
+    time_required = get_dist((T2 - T1))/velocity
+    return ((time_required - timestep)*pm + timestep*pm2)/time_required
+
+def Hsmoothening(H_old, H_new, alpha):
+    return  alpha*H_old + (1-alpha)*H_new
+
+
 def detect_markers(md1, md2, vd):
     model_shape  = (20,20)
     while(True):
@@ -196,5 +234,5 @@ if __name__=='__main__':
     # base_img = cv2.imread('markers/marker6_1.png')
     obj1 = OBJ('../models/fox.obj', swapyz=True)  
     obj2 = OBJ('../models/rat.obj', swapyz=True)
-    detect_2_markers(md1,md2,vd)
+    play_using_aruco(md1,md2,vd)
     
