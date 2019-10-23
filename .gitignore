@@ -1,1 +1,4 @@
 *.jpg
+CalibrationImages
+__pycache__
+Store

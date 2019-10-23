@@ -19,11 +19,12 @@ objp[:,:2] = np.mgrid[0:7,0:7].T.reshape(-1,2)
 objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d points in image plane.
 
-images = glob.glob('CalibrationImages/*.jpg')
+Directory = input()
+images = glob.glob('CalibrationImages/Set{0}/*.jpg'.format(Directory))
 Shape = None
 
 for fname in images:
-	gray = getGrayImage(fname,(1008,756))
+	gray = getGrayImage(fname,(640,352))
 	Shape = gray.shape[::-1]
 	ret, corners = cv2.findChessboardCorners(gray, (7,7),None)
 	if ret == True:
@@ -33,13 +34,13 @@ for fname in images:
 		imgpoints.append(corners2)
 		# Draw and display the corners
 		img = cv2.drawChessboardCorners(gray, (7,7), corners2, ret )
-		cv2.imshow('img',gray)
-		cv2.waitKey(2000)
+		# cv2.imshow('img',gray)
+		# cv2.waitKey(2000)
 
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, Shape, None,None)
 if ret:
 	print("Camera Matrix")
-	print(mtx)
+	print(Shape,mtx)
 else:
 	print("No Solution Found")
 
