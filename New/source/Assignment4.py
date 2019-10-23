@@ -190,8 +190,8 @@ MIN_MATCHES = 8
 ## ==================== Marker and Model Load ======================== ##
 
 ## Load Marker
-model1 = cv2.imread('marker_archieved/marker7_2.png',0)
-model2 = cv2.imread('marker_archieved/marker6_1.png',0)
+model1 = cv2.imread('../markers/marker1/VisualMarker.png',0)
+model2 = cv2.imread('../markers/marker1/VisualMarker1.png',0)
 
 # Load 3D model from OBJ file
 obj = OBJ('../models/fox.obj', swapyz=True)  
@@ -218,15 +218,17 @@ kp_model2, des_model2 = sift.detectAndCompute(model2,None)
 
 ## ================ Video Capture Initialize ============= ##
 
-cap = cv2.VideoCapture('../TestVideo.mp4')
+cap = cv2.VideoCapture('../Test4_{0}.mp4'.format(input()))
 # cap = cv2.VideoCapture(0)
 
 ## ===================== Start Streaming ================= ##
 
 position = np.identity(4)
+orientation = -np.identity(4)
+orientation[3][3] = 1.0
 initialPoint = np.array([0,0,0])
-finalPoint = np.array([0,500,0])
-step = Motion.getMotionStep(initialPoint,finalPoint,5)
+finalPoint = np.array([0,-500,0])
+step = Motion.getMotionStep(initialPoint,finalPoint,30)
 
 homo1 = None
 homo2 = None
@@ -258,7 +260,7 @@ while True:
 	## == Update Position == ##
 	position = np.matmul(position,step)
 
-	alpha = 0.01
+	alpha = 0.25
 	count_1=0
 	count_2=0
 

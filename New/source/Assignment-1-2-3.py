@@ -8,6 +8,8 @@ from objloader_simple import *
 ### Get Intrinsic Matrix K
 ### ======================================================================================================
 
+UnitinCm = 4.7
+
 def getGrayImage(fname,shape):
 	img = cv2.imread(fname)
 	gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
@@ -20,11 +22,12 @@ def getK():
 	# prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
 	objp = np.zeros((7*7,3), np.float32)
 	objp[:,:2] = np.mgrid[0:7,0:7].T.reshape(-1,2)
+	objp = objp*UnitinCm
 	# Arrays to store object points and image points from all the images.
 	objpoints = [] # 3d point in real world space
 	imgpoints = [] # 2d points in image plane.
 
-	images = glob.glob('CalibrationImages/Set{0}/*.jpeg'.format(setDirec))
+	images = glob.glob('CalibrationImages/Set{0}/*.jpg'.format(setDirec))
 	Shape = None
 
 	for fname in images:
@@ -195,7 +198,6 @@ position = np.identity(4)
 initialPoint = np.array([0,0,0])
 finalPoint = np.array([0,500,0])
 step = Motion.getMotionStep(initialPoint,finalPoint,5)
-
 
 while True:
 	ret, frame = cap.read()

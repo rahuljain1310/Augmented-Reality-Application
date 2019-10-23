@@ -17,10 +17,12 @@ position = np.identity(4)
 sift = cv2.xfeatures2d.SIFT_create()
 bf = cv2.BFMatcher()
 obj1 = OBJ('../models/fox.obj', swapyz=True)  
+pixelCmRatio = 9.5/(500-16)
 
 def init_():
 		model2 = cv2.imread('../markers/marker1/VisualMarker1.png',0)
 		model1 = cv2.imread('../markers/marker1/VisualMarker.png',0)
+		# model1 = cv2.rotate(model1, cv2.rotate)
 		# model1.reshape(400,500)
 		# model2.reshape(400,500)
 		# print(model1.shape)
@@ -80,6 +82,7 @@ def getHomographyFromMatched(matches,kp1,kp2):
 		dst = np.float32([ kp2[m.trainIdx].pt for m in matches[:,0] ]).reshape(-1,1,2)
 		H, masked = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
 	return H,masked
+
 
 def extract_RT(RT):
 		x1,x2,x3 = RT
@@ -232,7 +235,7 @@ def get_camera_pose(K,  corner, model_shape):
 		h,w = model_shape #centi meter
 		world_corner = np.float32([[0, 0], [w-1, 0], [w - 1, h - 1], [0, h-1]]).reshape(-1, 1, 2)
 		# print(world_corner)
-		homography,mask = cv2.findHomography(world_corner,corner)
+		homography,mask = cv2.findHomography(world_corner*pixelCmRatio,corner)
 		projection = projection_matrix(K, homography)  
 		return projection
 
