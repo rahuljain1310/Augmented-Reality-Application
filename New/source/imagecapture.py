@@ -10,8 +10,8 @@ dir_markers = os.path.join(os.pardir,'markers')
 dir_chess = os.path.join(os.pardir,'chessboards')
 dir_objects = os.path.join(os.pardir,'objects')
 
-
 MIN_MATCHES = 30
+
 def capture_boards():
     vd = cv2.VideoCapture(0)
     img_counter = 1
@@ -34,10 +34,7 @@ def capture_boards():
             cv2.imwrite(img_name, frame)
             img_counter += 1
     vd.release()
-
-
     # capture_boards()
-
 
 def getGrayImage(fname,shape):
 	img = cv2.imread(fname)
@@ -83,7 +80,6 @@ def getK():
 
 	cv2.destroyAllWindows()
 
-
 def main():
     """
     This functions loads the target surface image,
@@ -93,7 +89,6 @@ def main():
     camera_parameters = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
     # camera_parameters = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]])
     # camera_parameters = np.array([[1, 0, 2], [0, 2, 1], [0, 0, 1]],dtype=np.float32)
-
 
 	# camera_parameters = np.array([])
     # create ORB keypoint detector
@@ -118,7 +113,7 @@ def main():
         ret, frame = cap.read()
         print(frame.shape)
         if not ret:
-            print "Unable to capture video"
+            print("Unable to capture video")
             return 
         # find and draw the keypoints of the frame
         kp_frame, des_frame = orb.detectAndCompute(frame, None)
@@ -162,7 +157,7 @@ def main():
                 break
 
         else:
-            print "Not enough matches found - %d/%d" % (len(matches), MIN_MATCHES)
+            print("Not enough matches found - %d/%d" % (len(matches), MIN_MATCHES))
 
     cap.release()
     cv2.destroyAllWindows()
