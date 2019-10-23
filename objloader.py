@@ -44,5 +44,3 @@ class OBJ:
                 #self.faces.append((face, norms, texcoords, material))
                 self.faces.append((face, norms, texcoords))
 
-a = OBJ('../models/cow.obj')
-print(list(face for face in a.faces))
