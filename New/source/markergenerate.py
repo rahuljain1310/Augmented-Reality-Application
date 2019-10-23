@@ -12,8 +12,10 @@ from shapely.geometry import Polygon,LineString,Point
 
 # from Assignment4 import * 
 import argparse
-K = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
-# K = getK()
+# K = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
+K = getK()
+print("Intrinsic paramters are:")
+print(K)
 # K = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]])
 
 distCoeffs = (0,0,0,0)
@@ -371,7 +373,14 @@ def get_mid_homo(h1,h2, velocity = 0.05,timespan = 1000//30):
 	if (tt<=timespan):
 		return h2
 	return (h1*(tt-timespan) + h2*(timespan))/tt
-
+def update(H_old,H_new, pts, alpha, area_old):
+		dst = cv2.perspectiveTransform(pts,H_new)
+		area_new = Polygon(dst).area
+		fct = area_new/area_old
+		if (fct <0.8 or fct > 1.2):
+				return (H_new,area_old)
+		else:
+				H_new = 
 def play_using_sift(kpm1,kpm2,des1,des2,vd,model_shape):
 		# fourcc = cv2.VideoWriter_fourcc(*'XVID')
 		fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v') 	
@@ -418,7 +427,12 @@ def play_using_sift(kpm1,kpm2,des1,des2,vd,model_shape):
 						# print(homo2_t)
 						if homo2 is None:
 								homo2 = homo2_t
-						else:
+						elif homo2_t is not None:
+								
+								dst = cv2.perspectiveTransform(pts2,homo2_t)
+								poly1 = Polygon(dst)
+								if poly1.area
+
 								homo2 = np.array((1-alpha_h)*homo2 + (alpha_h)*homo2_t)
 								# 
 								dst = cv2.perspectiveTransform(pts2, homo2)
