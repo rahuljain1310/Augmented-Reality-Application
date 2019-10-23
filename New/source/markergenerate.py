@@ -1,7 +1,7 @@
 import cv2
 from cv2 import aruco
 from cv2.aruco import *
-import get_intrinsic
+from getIntrinsic import getK
 import os
 import numpy as np
 import glob
@@ -12,8 +12,8 @@ from shapely.geometry import Polygon,LineString,Point
 
 # from Assignment4 import * 
 import argparse
-# K = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
-K = getK()
+K = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
+# K = getK()
 # K = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]])
 
 distCoeffs = (0,0,0,0)
@@ -529,8 +529,10 @@ if __name__=='__main__':
 		# 	ret,frame = vd.read()
 		# 	if ret:
 		# 		vd_write.write(frame)
-		# play_using_sift(kpm1,kpm2,des1,des2,vd,(m1s,m2s))
-
+		try:
+			play_using_sift(kpm1,kpm2,des1,des2,vd,(m1s,m2s))
+		except:
+			pass
 		# base_img = cv2.imread('markers/marker6_1.png')
 		obj1 = OBJ('../models/fox.obj', swapyz=True)  
 		obj2 = OBJ('../models/rat.obj', swapyz=True)
