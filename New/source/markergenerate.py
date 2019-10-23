@@ -28,13 +28,14 @@ def project_onto_image():
     pass
 
 def create_markers():
-    markers_dict1 = aruco.getPredefinedDictionary(aruco.DICT_6X6_50)
-    markers_dict1= custom_dictionary_from(3,6,markers_dict1)
-    markers_dict2 = aruco.getPredefinedDictionary(aruco.DICT_7X7_50)
-    markers_dict2 = custom_dictionary_from(4,7,markers_dict2)
+    j=2
+    markers_dict_1 = aruco.getPredefinedDictionary(aruco.DICT_6X6_50)
+    markers_dict1= custom_dictionary_from(j,6,markers_dict_1)
+    markers_dict_2 = aruco.getPredefinedDictionary(aruco.DICT_7X7_50)
+    markers_dict2 = custom_dictionary_from(j,7,markers_dict_2)
 
-    markers1 = list(aruco.drawMarker(markers_dict1,i+1,200) for i in range(3))
-    markers2 = list(aruco.drawMarker(markers_dict2,i+1,200) for i in range(3))
+    markers1 = list(aruco.drawMarker(markers_dict1,i+1,200) for i in range(1))
+    markers2 = list(aruco.drawMarker(markers_dict2,i+1,200) for i in range(1))
     
     for i in range(len(markers1)):
         cv2.imwrite(os.path.join('markers','marker6_')+str(i+1) + '.png',markers1[i])
@@ -42,7 +43,37 @@ def create_markers():
         cv2.imwrite(os.path.join('markers','marker7_')+str(i+1)+'.png', markers2[i])
     return markers_dict1, markers_dict2
     # return markers
-    
+
+def detect_2_markers(md1,md2,vd):
+    model_shape = (20,20)
+    c1 = None
+    c2 = None
+    while(True):
+        ret, frame = vd.read()
+        # print(frame.shape)
+        # print ret
+        if  ret:
+            corners1, ids, rejectedpts = detectMarkers(frame,md1)
+            if (len(corners1)>=1):
+                c1 = corners1[0]
+            # corners2,_,_ = detectMarkers(frame,md2)
+            corners2, ids2,rp2 = detectMarkers(frame,md2)
+            if (len(corners2)>=1):
+                c2 = corners2[0]
+
+            if (c1 is not None and c2 is not None):
+                print(5)
+                pm1 = get_camera_pose(K,c1)
+                pm2 = get_camera_pose(K,c2)
+                RT_rel = get_relative_rt(pm1,pm2)
+                frame = drawDetectedMarkers(frame,[c1,c2])
+                # frame = drawDetectedMarkers(frame,c2)
+                frame = render(frame,obj1,pm1,model_shape)
+                frame = render(frame, obj2,pm2,model_shape)
+            
+            cv2.imshow('corner',frame)
+            # print(corners,ids)
+            cv2.waitKey(1000//30)
 def detect_markers(md1, md2, vd):
     model_shape  = (20,20)
     while(True):
@@ -165,5 +196,5 @@ if __name__=='__main__':
     # base_img = cv2.imread('markers/marker6_1.png')
     obj1 = OBJ('../models/fox.obj', swapyz=True)  
     obj2 = OBJ('../models/rat.obj', swapyz=True)
-    detect_markers(md1,md2,vd)
+    detect_2_markers(md1,md2,vd)
     
