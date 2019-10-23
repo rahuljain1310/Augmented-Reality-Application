@@ -1,60 +1,58 @@
 import os,glob,math,argparse
 import cv2
 import numpy as np
-# import Motion
+import Motion
+import getIntrinsic
 from objloader_simple import *
 
 ### ======================================================================================================
 ### Get Intrinsic Matrix K
 ### ======================================================================================================
 
-UnitinCm = 4.7
+# def getGrayImage(fname,shape):
+# 	img = cv2.imread(fname)
+# 	gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+# 	gray = cv2.resize(gray, shape)
+# 	return gray
 
-def getGrayImage(fname,shape):
-	img = cv2.imread(fname)
-	gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-	gray = cv2.resize(gray, shape)
-	return gray
+# def getK():
+# 	setDirec = input()
+# 	criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+# 	# prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
+# 	objp = np.zeros((7*7,3), np.float32)
+# 	objp[:,:2] = np.mgrid[0:7,0:7].T.reshape(-1,2)
+# 	# Arrays to store object points and image points from all the images.
+# 	objpoints = [] # 3d point in real world space
+# 	imgpoints = [] # 2d points in image plane.
 
-def getK():
-	setDirec = input()
-	criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-	# prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-	objp = np.zeros((7*7,3), np.float32)
-	objp[:,:2] = np.mgrid[0:7,0:7].T.reshape(-1,2)
-	objp = objp*UnitinCm
-	# Arrays to store object points and image points from all the images.
-	objpoints = [] # 3d point in real world space
-	imgpoints = [] # 2d points in image plane.
+# 	images = glob.glob('CalibrationImages/Set{0}/*.jpg'.format(setDirec))
+# 	Shape = None
 
-	images = glob.glob('CalibrationImages/Set{0}/*.jpg'.format(setDirec))
-	Shape = None
+# 	for fname in images:
+# 		gray = getGrayImage(fname,(640,352))
+# 		Shape = gray.shape[::-1]
+# 		ret, corners = cv2.findChessboardCorners(gray, (7,7),None)
+# 		if ret == True:
+# 			print(fname)
+# 			objpoints.append(objp)
+# 			corners2 = cv2.cornerSubPix(gray,corners,(11,11),(-1,-1),criteria)
+# 			imgpoints.append(corners2)
+# 			# Draw and display the corners
+# 			img = cv2.drawChessboardCorners(gray, (7,7), corners2, ret )
+# 			cv2.imshow('img',gray)
+# 			cv2.waitKey(2000)
 
-	for fname in images:
-		gray = getGrayImage(fname,(640,352))
-		Shape = gray.shape[::-1]
-		ret, corners = cv2.findChessboardCorners(gray, (7,7),None)
-		if ret == True:
-			print(fname)
-			objpoints.append(objp)
-			corners2 = cv2.cornerSubPix(gray,corners,(11,11),(-1,-1),criteria)
-			imgpoints.append(corners2)
-			# Draw and display the corners
-			img = cv2.drawChessboardCorners(gray, (7,7), corners2, ret )
-			cv2.imshow('img',gray)
-			cv2.waitKey(2000)
-
-	ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, Shape, None,None)
-	if ret:
-		print("Image Size:")
-		print(Shape)
-		print("Camera Matrix:")
-		print(mtx)
-		return mtx
-	else:
-		print("No Solution Found")
-		return None
-	cv2.destroyAllWindows()
+# 	ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, Shape, None,None)
+# 	if ret:
+# 		print("Image Size:")
+# 		print(Shape)
+# 		print("Camera Matrix:")
+# 		print(mtx)
+# 		return mtx
+# 	else:
+# 		print("No Solution Found")
+# 		return None
+# 	cv2.destroyAllWindows()
 
 ### ======================================================================================================
 ### Homography & Projection Matrix Functions
@@ -156,10 +154,11 @@ args = parser.parse_args()
 
 homography = None 
 projection = None
-camera_parameters = getK()
+camera_parameters = getIntrinsic.getK()
 # camera_parameters = np.array([[517.23, 0, 309.16], [0, 379.5, 177.93], [0, 0, 1]],dtype=np.float32)
 
 MIN_MATCHES = 10
+pixelCmRatio = 12/(500-16)
 
 ## ==================== Marker and Model Load ======================== ##
 
@@ -252,7 +251,9 @@ while True:
 	
 	## == Show Frame == ##
 	print("RT")
-	print(np.matmul(np.linalg.inv(camera_parameters), projection))
+	RT = np.matmul(np.linalg.inv(camera_parameters), projection)
+	RT[0:3,3] *= pixelCmRatio
+	print(RT)
 	cv2.imshow('frame', frame)
 	if cv2.waitKey(10) & 0xFF == ord('q'):
 		break
