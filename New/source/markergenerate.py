@@ -1,14 +1,19 @@
 import cv2
 from cv2 import aruco
 from cv2.aruco import *
+import get_intrinsic
 import os
 import numpy as np
 import glob
 import math
 from objloader_simple import *
+import shapely
+from shapely.geometry import Polygon,LineString,Point
+
 # from Assignment4 import * 
 import argparse
-K = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
+# K = np.array([[517, 0, 309], [0, 379.5, 178], [0, 0, 1]],dtype=np.float32)
+K = getK()
 # K = np.array([[800, 0, 320], [0, 800, 240], [0, 0, 1]])
 
 distCoeffs = (0,0,0,0)
@@ -86,8 +91,8 @@ def getHomographyFromMatched(matches,kp1,kp2):
 
 def extract_RT(RT):
 		x1,x2,x3 = RT
-		R = np.array([x1[:2],x2[:2],x3[:2]])
-		T = np.array([x1[2],x2[2],x3[2]])
+		R = np.array([x1[:3],x2[:3],x3[:3]])
+		T = np.array([x1[3],x2[3],x3[3]])
 		return R,T
 
 def get_relative_rt(H1, H2):
@@ -171,6 +176,63 @@ def play_using_aruco(md1,md2,vd):
 						cv2.imshow('corner',frame)
 						# print(corners,ids)
 						cv2.waitKey(1000//30)
+
+def play_using_aruco(kpm1,des1,vd,model_shape):
+		# model_shape = (20,20)
+		c1 = None
+		c2 = None
+		nfc1 = 0
+		nfc2 = 0
+		nfc_limit = 20
+		pm1 = None
+		pm2 = None
+		while(True):
+				ret, frame = vd.read()
+				# print(frame.shape)
+				# print ret
+				if  ret:
+						corners1, ids, rejectedpts = detectMarkers(frame,md1)
+						if (len(corners1)>=1):
+								c1 = corners1[0]
+								nfc1 = 0
+						else:
+								nfc1 +=1
+								if (nfc1==nfc_limit):
+										c1=None
+										pm1 = None
+										nfc1 = 0
+
+						# corners2,_,_ = detectMarkers(frame,md2)
+						corners2, ids2,rp2 = detectMarkers(frame,md2)
+						if (len(corners2)>=1):
+								c2 = corners2[0]
+								nfc2=0
+						else:
+								nfc2 +=1
+								if (nfc2==nfc_limit):
+										c2=None
+										nfc2 = 0
+
+						if (c1 is not None and c2 is not None):
+								# print(5)
+								pm2 = get_camera_pose(K,c2)
+								if pm1 is None:
+										pm1 = get_camera_pose(K,c1)
+								else:
+										pm1 = get_pm(pm1,pm2)
+								
+								
+								# RT_rel = get_relative_rt(pm1,pm2)
+								frame = drawDetectedMarkers(frame,[c1,c2])
+								# frame = drawDetectedMarkers(frame,c2)
+								frame = render(frame,obj1,pm1,model_shape)
+								# frame = render(frame, obj2,pm2,model_shape)
+						
+						cv2.imshow('corner',frame)
+						# print(corners,ids)
+						cv2.waitKey(1000//30)
+
+
 def get_dist(a):
 		return math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2])
 def get_pm(pm, pm2,timestep=1000/30, velocity = 0.1):
@@ -381,6 +443,76 @@ def play_using_sift(kpm1,kpm2,des1,des2,vd,model_shape):
 				vd_write.write(frame)
 				cv2.waitKey(1000//30)
 
+def stay_using_sift(kpm1,des1,vd,model_shape,alpha_h):
+		fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v') 	
+		vd_write = cv2.VideoWriter('video_out_testvideo.mp4',fourcc,15,(640,352))
+		homo1 = None
+		# homo2 = None
+		MIN_MATCHES = 8
+		# alpha_h= 0.05
+		h,w= np.array(model_shape)
+		homo_cur = None
+		
+		pts1 = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+		# pts2 = np.float32([[0, 0], [0, h2 - 1], [w2 - 1, h2 - 1], [w2 - 1, 0]]).reshape(-1, 1, 2)
+		homo_count = 0
+		homo_max_count = 20
+		while(True):
+				ret, frame = vd.read()
+				if (not ret):
+						print("Unable to capture video or End of Video")
+						break
+				detectframe = frame
+				## Normal Frame For Detection	
+				detectframe = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY) ## Gray Frame For Detection
+				_,detectframe = cv2.threshold(detectframe, 200, 255, cv2.THRESH_BINARY) ## Black and White Frame Detection
+
+		
+				kp_frame, des_frame = sift.detectAndCompute(detectframe, None)    ## SIFT
+		
+				# matches = bf.match(des_model, des_frame)           ## ORB
+				_, matches1 = getMatches(des1, des_frame)    ## SIFT
+	
+				if (len(matches1)>MIN_MATCHES):
+						homo1_t,marked = getHomographyFromMatched(matches1, kpm1,kp_frame)
+				else:
+						homo1_t = None
+
+				if homo1 is None and homo1_t is not None:
+						homo1 = homo1_t
+						
+					
+				if homo1 is not None and homo1_t is not None:
+						homo1 = np.array((1-alpha_h)*homo1 + (alpha_h)*homo1_t)
+						homo_count = 0
+				else:
+						homo_count += 1
+						if (homo_count > homo_max_count):
+								homo1 = None
+								homo_count = 0
+
+				if homo1 is not None:
+								# 
+						dst = cv2.perspectiveTransform(pts1, homo1)
+						frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)  
+						# 
+						# print(homo2)
+						pm= projection_matrix(K, homo1)
+						RT = np.matmul(np.linalg.inv(K),pm)
+						R,T =extract_RT(RT)
+						t1,t2,t3 = (pixelCmRatio*T)
+						T_n = np.array([[t1],[t2],[t3]])
+						# # print(R)
+						# print(T)
+						RT = np.concatenate((R,T_n),axis=1)
+						print(RT)
+						frame = render(frame,obj1,pm,model_shape)
+
+				cv2.imshow('frame',frame)
+				frame = np.asarray(frame,dtype=np.uint8)
+				vd_write.write(frame)
+				cv2.waitKey(1000//30)
+
 
 if __name__=='__main__':
 		md1, md2 = create_markers()
@@ -389,6 +521,7 @@ if __name__=='__main__':
 		# vd = cv2.VideoCapture('videos/video_1.mp4')
 		# vd = cv2.VideoCapture(0)
 		vd = cv2.VideoCapture('../Test4_3.mp4')
+		vd1 = cv2.VideoCapture('../video1.mp4')
 		# fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v') #
 
 		# vd_write = cv2.VideoWriter('video_out_test4_3.mp4',fourcc,30,(640,352))
@@ -396,9 +529,12 @@ if __name__=='__main__':
 		# 	ret,frame = vd.read()
 		# 	if ret:
 		# 		vd_write.write(frame)
-		play_using_sift(kpm1,kpm2,des1,des2,vd,(m1s,m2s))
+		# play_using_sift(kpm1,kpm2,des1,des2,vd,(m1s,m2s))
+
 		# base_img = cv2.imread('markers/marker6_1.png')
 		obj1 = OBJ('../models/fox.obj', swapyz=True)  
 		obj2 = OBJ('../models/rat.obj', swapyz=True)
+
+		stay_using_sift(kpm1,des1,vd1,m1s,0.1)
 		# play_using_aruco(md1,md2,vd)
 		
