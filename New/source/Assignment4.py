@@ -53,6 +53,14 @@ def getK():
 		return None
 	cv2.destroyAllWindows()
 
+def getArea(ls):
+	a = ls[0]
+	b = ls[1]
+	c = ls[2]
+	d1 = a-b
+	d2 = c-b
+	return np.linalg.norm(np.cross(d1,d2))
+
 ### ======================================================================================================
 ### Homography & Projection Matrix Functions
 ### ======================================================================================================
@@ -161,6 +169,13 @@ def getProjectionAndRender(frame, model,matches,kp_model, kp_frame, projection, 
 def get_smoothened_homo(H_old,H_new, alpha):
 	return H_old*(1-alpha) + H_new*(alpha)
 
+def percentageChange(q1,q2):
+	x = 100*(q1-q2)/q2
+	if x>0:
+		return x
+	else :
+		return -x
+
 ### ======================================================================================================
 ### Intilizae Model, Marker and Descriptors
 ### ======================================================================================================
@@ -224,14 +239,23 @@ cap = cv2.VideoCapture('../Test4_{0}.mp4'.format(input()))
 ## ===================== Start Streaming ================= ##
 
 position = np.identity(4)
-orientation = -np.identity(4)
-orientation[3][3] = 1.0
 initialPoint = np.array([0,0,0])
 finalPoint = np.array([0,-500,0])
 step = Motion.getMotionStep(initialPoint,finalPoint,30)
 
 homo1 = None
 homo2 = None
+
+
+h, w = model1.shape
+pts1 = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+
+h, w = model2.shape
+pts2 = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+
+area1 = math.inf
+area2 = math.inf
+
 while True:
 	ret, frame = cap.read()
 	if not ret:
@@ -264,17 +288,22 @@ while True:
 	count_1=0
 	count_2=0
 
+
 	if len(matches2)>MIN_MATCHES:
 		homography,_ = getHomographyFromMatched(matches2,kp_model2,kp_frame)
 		if homography is not None:
-			if homography2 is not None:
+			dst = cv2.perspectiveTransform(pts2, homography)
+			AreaQuad = getArea(dst[0:3])+getArea(dst[1:])
+			if homography2 is not None and percentageChange(AreaQuad,area2)<20:
 				homography2 = get_smoothened_homo(homography,homography2,alpha)
+				print(AreaQuad,area2)
+				area2 = AreaQuad
 			else:
 				homography2 = homography
 			count_1 = 0
 	else:
 		count_1 += 1
-		if (count_1==25):
+		if (count_1==20):
 			count_1 = 0
 			homography2 = None
 	if homography2 is not None:
@@ -283,14 +312,17 @@ while True:
 	if len(matches1)>MIN_MATCHES:
 		homography,_ = getHomographyFromMatched(matches1,kp_model1,kp_frame)
 		if homography is not None:
-			if homography1 is not None:
+			dst = cv2.perspectiveTransform(pts1, homography)
+			AreaQuad = getArea(dst[0:3])+getArea(dst[1:])	
+			if homography1 is not None and percentageChange(AreaQuad,area1)<33:
 				homography1 = get_smoothened_homo(homography,homography1,alpha)
+				area1 = AreaQuad
 			else:
 				homography1 = homography
 			count_2 = 0
 	else:
 		count_1 += 1
-		if (count_1==25):
+		if (count_1==20):
 			count_1 = 0
 			homography1 = None
 	if homography1 is not None:

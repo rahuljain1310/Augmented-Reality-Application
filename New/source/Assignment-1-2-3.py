@@ -136,6 +136,23 @@ def render(img, obj, projection, model, color=False):
 	finally:
 		return img
 	
+def getArea(ls):
+	a = ls[0]
+	b = ls[1]
+	c = ls[2]
+	d1 = a-b
+	d2 = c-b
+	return np.linalg.norm(np.cross(d1,d2))
+
+def percentageChange(q1,q2):
+	if q2 == math.inf:
+		return 0
+	x = 100*(q1-q2)/q2
+	if x>0:
+		return x
+	else :
+		return -x
+
 
 ### ======================================================================================================
 ### Intilizae Model, Marker and Descriptors
@@ -198,6 +215,18 @@ initialPoint = np.array([0,0,0])
 finalPoint = np.array([0,500,0])
 step = Motion.getMotionStep(initialPoint,finalPoint,5)
 
+
+alpha = 0.25
+count=0
+area = math.inf
+
+h, w = model.shape
+pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+print(pts)
+
+def get_smoothened_homo(H_old,H_new, alpha):
+	return H_old*(1-alpha) + H_new*(alpha)
+
 while True:
 	ret, frame = cap.read()
 	if not ret:
@@ -227,33 +256,47 @@ while True:
 
 	# === Compute Homography if enough matches are found === #
 	if len(matches) > MIN_MATCHES:
-		homography,mask = getHomographyFromMatched(matches,kp_model,kp_frame)
-		## IF RECTANGLE
-		if args.rectangle: 
-				h, w = model.shape
-				pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
-				dst = cv2.perspectiveTransform(pts, homography)
-				frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)  
-		## IF HOMOGRAPHY EXISTS
-		if homography is not None: 
-				try:
-						projection = projection_matrix(camera_parameters, homography)  
-						projection = np.matmul(projection,position)
-						frame = render(frame, obj, projection, model, False)
-				except:
-						print('cannot render object')
-		## Draw First 10 Matches
-		# if args.matches:
-				# frame = cv2.drawMatches(model, kp_model, frame, kp_frame, matches[:10], 0, flags=2)
+		homography_,mask = getHomographyFromMatched(matches,kp_model,kp_frame)
+		if homography_ is not None:
+			dst = cv2.perspectiveTransform(pts, homography_)
+			AreaQuad = getArea(dst[0:3])+getArea(dst[1:])	
+			x = percentageChange(AreaQuad,area)
+			if homography is not None:
+				if x<10:
+					homography = get_smoothened_homo(homography,homography_,alpha)
+					area = AreaQuad
+			else:
+				homography = homography_
+				print(x)			
+				count = 0
+		else:
+			count += 1
+			if (count==20):
+				count = 0
+				homography = None
+			## IF RECTANGLE
+		if args.rectangle and homography is not None: 
+			h, w = model.shape
+			pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+			dst = cv2.perspectiveTransform(pts, homography)
+			AreaQuad = getArea(dst[0:3])+getArea(dst[1:])
+			frame = cv2.polylines(frame, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)  
+			try:
+					projection = projection_matrix(camera_parameters, homography)  
+					projection = np.matmul(projection,position)
+					frame = render(frame, obj, projection, model, False)
+			except:
+					print('cannot render object')
 	else:
 		print("Not enough matches found - %d/%d" % (len(matches), MIN_MATCHES))
-		frame = render(frame, obj, projection, model, False)
+		if projection is not None:
+			frame = render(frame, obj, projection, model, False)
 	
 	## == Show Frame == ##
-	print("RT")
-	RT = np.matmul(np.linalg.inv(camera_parameters), projection)
-	RT[0:3,3] *= pixelCmRatio
-	print(RT)
+	# print("RT")
+	# RT = np.matmul(np.linalg.inv(camera_parameters), projection)
+	# RT[0:3,3] *= pixelCmRatio
+	# print(RT)
 	cv2.imshow('frame', frame)
 	if cv2.waitKey(10) & 0xFF == ord('q'):
 		break
